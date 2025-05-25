@@ -1,9 +1,9 @@
-from sklearn.decomposition import TruncatedSVD
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.decomposition import TruncatedSVD
 
 # Constants
 DATAFILES_DIR_PATH = "./datafiles"
@@ -11,7 +11,8 @@ HISTOGRAMS_DIR_PATH = "./histograms"
 DATASET_FILE_NAME = "Dataset.npy"
 MINIMUM_RATINGS = 100
 MAXIMUM_RATINGS = 300
-N_SVD_COMPONENTS = 500 # Number of SVD components to use for dimensionality reduction, we need to test this value
+N_SVD_COMPONENTS = 500  # Number of SVD components to use for dimensionality reduction, we need to test this value
+
 
 def check_and_setup_directories():
     # Directory setup
@@ -100,13 +101,14 @@ def plot_histogram(series, title, xlabel, ylabel, filename):
     plt.savefig(figure_url, dpi=100, format='png', bbox_inches='tight')
     plt.show()
 
+
 def create_user_item_matrix(df, unique_users_list, unique_items_list):
     pickle_file = os.path.join(DATAFILES_DIR_PATH, "user_item_matrix.pkl")
 
     if os.path.exists(pickle_file):
         user_item_matrix = pd.read_pickle(pickle_file)
     else:
-        user_item_matrix = pd.DataFrame(0, index=unique_users_list, columns=unique_items_list)
+        user_item_matrix = pd.DataFrame(data=0, index=unique_users_list, columns=unique_items_list)
 
         for _, row in df.iterrows():
             user = row["user"]
@@ -117,6 +119,7 @@ def create_user_item_matrix(df, unique_users_list, unique_items_list):
         user_item_matrix.to_pickle(pickle_file)
 
     return user_item_matrix
+
 
 def apply_svd_to_user_item_matrix(user_item_matrix, n_components=50):
     pickle_file = os.path.join(DATAFILES_DIR_PATH, f"svd_user_representation_matrix_n{n_components}.pkl")
@@ -131,6 +134,7 @@ def apply_svd_to_user_item_matrix(user_item_matrix, n_components=50):
 
     return svd_matrix
 
+
 if __name__ == "__main__":
     check_and_setup_directories()
 
@@ -143,7 +147,7 @@ if __name__ == "__main__":
 
     num_of_ratings_per_user_df = get_num_of_ratings_per_user(df)
 
-    # Get the time span per user in the past days
+    # Get the time span per user
     time_span_per_user_df = get_time_span_per_user(df)
 
     # Create a new dataframe by joining the num_of_ratings_per_user_df and time_span_per_user_df dataframes.
@@ -166,34 +170,32 @@ if __name__ == "__main__":
                    ylabel="Number of Users",
                    filename="time_span_hist.png")
 
-    # Save the reduced joined dataframe and reset the index
-    final_df = df.loc[df["user"].isin(reduced_joined_df["user"])].reset_index()
+    # Filter df to keep the users from reduced_joined_df
+    final_df = df.loc[df["user"].isin(reduced_joined_df["user"])].reset_index(drop=True)
 
-    final_df = final_df.drop("index", axis=1)
-
+    # Get unique user and item counts from the final_df
     final_unique_users, final_unique_users_count = get_unique_users(final_df)
     final_unique_items, final_unique_items_count = get_unique_items(final_df)
-    final_ratings_count = len(final_df)
 
+    # Sort final_unique_users and final_unique_items
     sorted_final_users = np.sort(final_unique_users)
     sorted_final_items = np.sort(final_unique_items)
 
-    final_users_dict = dict(zip(sorted_final_users, list(range(0, final_unique_users_count))))
-    final_items_dict = dict(zip(sorted_final_items, list(range(0, final_unique_items_count))))
+    final_unique_users_indices = list(range(final_unique_users_count))
+    final_unique_items_indices = list(range(final_unique_items_count))
 
+    # Create mappings from original user/item IDs to consecutive integer indices
+    final_users_dict = dict(zip(sorted_final_users, final_unique_users_indices))
+    final_items_dict = dict(zip(sorted_final_items, final_unique_items_indices))
+
+    # Replace original user/item IDs in final_df with their corresponding integer indices
     final_df["user"] = final_df["user"].map(final_users_dict)
     final_df["item"] = final_df["item"].map(final_items_dict)
 
+    # Create user-item matrix (dataframe)
     user_item_matrix = create_user_item_matrix(final_df,
-                                               list(range(final_unique_users_count)),
-                                               list(range(final_unique_items_count)))
+                                               final_unique_users_indices,
+                                               final_unique_items_indices)
 
-    #print("\nUser-Item Matrix (Head):")
-    #print(user_item_matrix.head())
-    #print(f"\nShape of User-Item Matrix: {user_item_matrix.shape}")
-
+    # Apply Truncated SVD to extract low-dimensional user embeddings from the user-item matrix
     svd_user_representation_matrix = apply_svd_to_user_item_matrix(user_item_matrix, N_SVD_COMPONENTS)
-
-    #print("\nSVD User Representation Matrix (Head - first 5 columns):")
-    #print(svd_user_representation_matrix.iloc[:, :5].head())  # Show only first 5 latent factors
-    #print(f"Shape of SVD User Representation Matrix: {svd_user_representation_matrix.shape}")
