@@ -3,21 +3,27 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
+from sklearn.cluster import KMeans
 from sklearn.decomposition import TruncatedSVD
+from sklearn.manifold import TSNE
+from sklearn.preprocessing import normalize
 
 # Constants
 DATAFILES_DIR_PATH = "./datafiles"
 HISTOGRAMS_DIR_PATH = "./histograms"
+CLUSTERS_DIR_PATH = "./clusters"
 DATASET_FILE_NAME = "Dataset.npy"
 MINIMUM_RATINGS = 100
 MAXIMUM_RATINGS = 300
 N_SVD_COMPONENTS = 500  # Number of SVD components to use for dimensionality reduction, we need to test this value
-
+L_VALUES = [3, 5, 7]
 
 def check_and_setup_directories():
     # Directory setup
     os.makedirs(DATAFILES_DIR_PATH, exist_ok=True)
     os.makedirs(HISTOGRAMS_DIR_PATH, exist_ok=True)
+    os.makedirs(CLUSTERS_DIR_PATH, exist_ok=True)
 
     # Check if a dataset file with the name "Dataset.npy" exists
     dataset_path = os.path.join(DATAFILES_DIR_PATH, DATASET_FILE_NAME)
@@ -120,7 +126,6 @@ def create_user_item_matrix(df, unique_users_list, unique_items_list):
 
     return user_item_matrix
 
-
 def apply_svd_to_user_item_matrix(user_item_matrix, n_components=50):
     pickle_file = os.path.join(DATAFILES_DIR_PATH, f"svd_user_representation_matrix_n{n_components}.pkl")
 
@@ -134,6 +139,39 @@ def apply_svd_to_user_item_matrix(user_item_matrix, n_components=50):
 
     return svd_matrix
 
+def plot_clusters(user_coordinates_df, title, filename):
+    plt.figure(figsize=(10, 8))
+    sns.scatterplot(x='component_1', y='component_2', hue='cluster', data=user_coordinates_df, palette='viridis', legend='full', s=50, alpha=0.7)
+    plt.title(title)
+    plt.xlabel('t-SNE Component 1')
+    plt.ylabel('t-SNE Component 2')
+    plt.grid(True)
+    figure_url = os.path.join(CLUSTERS_DIR_PATH, filename)
+    plt.savefig(figure_url, dpi=100, format='png', bbox_inches='tight')
+    plt.show()
+    print(f"Clusters visualized and saved to {figure_url}")
+
+def perform_clustering_and_visualize(data_for_clustering, unique_users, metric_for_kmeans, metric_name, L_values):
+    print(f"\nPerforming clustering with {metric_name} distance on SVD data...")
+
+    tsne = TSNE(n_components=2, random_state=42)
+    user_coordinates = tsne.fit_transform(data_for_clustering)
+    user_coordinates_df = pd.DataFrame(user_coordinates, index=unique_users, columns=['component_1', 'component_2'])
+
+    for L in L_values:
+        if metric_for_kmeans == 'cosine':
+            data_to_cluster = normalize(data_for_clustering, axis=1)
+        else:
+            data_to_cluster = data_for_clustering
+
+        kmeans_model = KMeans(n_clusters=L, init='k-means++', max_iter=300, n_init=10, random_state=42, algorithm='lloyd')
+        clusters = kmeans_model.fit_predict(data_to_cluster)
+
+        user_coordinates_df['cluster'] = clusters
+
+        plot_clusters(user_coordinates_df,
+                    title=f'User Clusters with {metric_name} Distance (L={L}) on SVD Data - Visualized with t-SNE',
+                    filename=f"clusters_svd_{metric_name.lower()}_L{L}.png")
 
 if __name__ == "__main__":
     check_and_setup_directories()
@@ -199,3 +237,15 @@ if __name__ == "__main__":
 
     # Apply Truncated SVD to extract low-dimensional user embeddings from the user-item matrix
     svd_user_representation_matrix = apply_svd_to_user_item_matrix(user_item_matrix, N_SVD_COMPONENTS)
+
+    perform_clustering_and_visualize(svd_user_representation_matrix,
+                                     svd_user_representation_matrix.index.values,
+                                     "euclidean",
+                                     "Euclidean",
+                                     L_VALUES)
+
+    perform_clustering_and_visualize(svd_user_representation_matrix,
+                                     svd_user_representation_matrix.index.values,
+                                     "cosine",
+                                     "Cosine",
+                                     L_VALUES)
