@@ -1,23 +1,16 @@
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
-from sklearn.cluster import KMeans
-from sklearn.decomposition import TruncatedSVD
-from sklearn.manifold import TSNE
-from sklearn.preprocessing import normalize
+from sklearn.decomposition import PCA
+from sklearn_extra.cluster import KMedoids
 
-# Constants
-DATAFILES_DIR_PATH = "./datafiles"
-HISTOGRAMS_DIR_PATH = "./histograms"
-CLUSTERS_DIR_PATH = "./clusters"
-DATASET_FILE_NAME = "Dataset.npy"
-MINIMUM_RATINGS = 100
-MAXIMUM_RATINGS = 300
-N_SVD_COMPONENTS = 500  # Number of SVD components to use for dimensionality reduction, we need to test this value
-L_VALUES = [3, 5, 7]
+from src.constants import *
+from src.distance.cosine_distance import custom_cosine_distance
+from src.distance.distance_matrix import calculate_distance_matrix
+from src.distance.euclidian_distance import custom_euclidean_distance
+from src.utils import plot_histogram, plot_clusters
+
 
 def check_and_setup_directories():
     # Directory setup
@@ -94,20 +87,6 @@ def join_dataframes_on_user(num_of_ratings_per_user_df, time_span_per_user_df):
     return joined_df
 
 
-def plot_histogram(series, title, xlabel, ylabel, filename):
-    n, bins, patches = plt.hist(series, bins="auto", color="blue",
-                                alpha=0.7, rwidth=0.75)
-    plt.grid(axis="y", alpha=0.75)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)  # Frequency
-    plt.title(title)
-    maxfreq = n.max()
-    plt.ylim(ymax=np.ceil(maxfreq / 10) * 10 if maxfreq % 10 else maxfreq + 10)
-    figure_url = os.path.join(HISTOGRAMS_DIR_PATH, filename)
-    plt.savefig(figure_url, dpi=100, format='png', bbox_inches='tight')
-    plt.show()
-
-
 def create_user_item_matrix(df, unique_users_list, unique_items_list):
     pickle_file = os.path.join(DATAFILES_DIR_PATH, "user_item_matrix.pkl")
 
@@ -126,52 +105,44 @@ def create_user_item_matrix(df, unique_users_list, unique_items_list):
 
     return user_item_matrix
 
-def apply_svd_to_user_item_matrix(user_item_matrix, n_components=50):
-    pickle_file = os.path.join(DATAFILES_DIR_PATH, f"svd_user_representation_matrix_n{n_components}.pkl")
 
-    if os.path.exists(pickle_file):
-        svd_matrix = pd.read_pickle(pickle_file)
-    else:
-        svd_model = TruncatedSVD(n_components=n_components)
-        svd_features = svd_model.fit_transform(user_item_matrix)
-        svd_matrix = pd.DataFrame(svd_features, index=user_item_matrix.index)
-        svd_matrix.to_pickle(pickle_file)
+def perform_clustering_and_visualize(user_item_matrix, unique_users_indices, metric_name):
+    # Apply PCA for visualization to 2D
+    print(f"Applying PCA for visualization (from {user_item_matrix.shape[1]} dimensions to 2D)...")
+    reducer = PCA(n_components=2, random_state=42)
 
-    return svd_matrix
+    # PCA is applied on original data, not the distance matrix
+    user_coordinates = reducer.fit_transform(user_item_matrix)
+    print("PCA dimensionality reduction complete.")
+    user_coordinates_df = pd.DataFrame(user_coordinates, index=unique_users_indices, columns=['component_1', 'component_2'])
 
-def plot_clusters(user_coordinates_df, title, filename):
-    plt.figure(figsize=(10, 8))
-    sns.scatterplot(x='component_1', y='component_2', hue='cluster', data=user_coordinates_df, palette='viridis', legend='full', s=50, alpha=0.7)
-    plt.title(title)
-    plt.xlabel('t-SNE Component 1')
-    plt.ylabel('t-SNE Component 2')
-    plt.grid(True)
-    figure_url = os.path.join(CLUSTERS_DIR_PATH, filename)
-    plt.savefig(figure_url, dpi=100, format='png', bbox_inches='tight')
-    plt.show()
-    print(f"Clusters visualized and saved to {figure_url}")
+    for n in N_OF_CLUSTERS:
+        print(f"K-Medoids Clustering with n={n}...")
 
-def perform_clustering_and_visualize(data_for_clustering, unique_users, metric_for_kmeans, metric_name, L_values):
-    print(f"\nPerforming clustering with {metric_name} distance on SVD data...")
-
-    tsne = TSNE(n_components=2, random_state=42)
-    user_coordinates = tsne.fit_transform(data_for_clustering)
-    user_coordinates_df = pd.DataFrame(user_coordinates, index=unique_users, columns=['component_1', 'component_2'])
-
-    for L in L_values:
-        if metric_for_kmeans == 'cosine':
-            data_to_cluster = normalize(data_for_clustering, axis=1)
+        # Select the appropriate custom distance function
+        if metric_name == 'euclidean':
+            custom_metric_func = custom_euclidean_distance
+        elif metric_name == 'cosine':
+            custom_metric_func = custom_cosine_distance
         else:
-            data_to_cluster = data_for_clustering
+            raise ValueError("Invalid metric name. Choose 'euclidean' or 'cosine'.")
 
-        kmeans_model = KMeans(n_clusters=L, init='k-means++', max_iter=300, n_init=10, random_state=42, algorithm='lloyd')
-        clusters = kmeans_model.fit_predict(data_to_cluster)
+        # Calculate the custom distance matrix
+        print(f"Calculating {metric_name.capitalize()} distance matrix...")
+        distance_matrix = calculate_distance_matrix(user_item_matrix, custom_metric_func)
+        np.save(os.path.join(DATAFILES_DIR_PATH, f"distance_matrix_{metric_name}.npy"), distance_matrix)
+        print("Distance matrix calculation complete.")
 
+        kmedoids_model = KMedoids(n_clusters=n, metric='precomputed', method='alternate', init='k-medoids++',
+                                  random_state=42)
+        clusters = kmedoids_model.fit_predict(distance_matrix)  # Pass the precomputed distance matrix
         user_coordinates_df['cluster'] = clusters
 
         plot_clusters(user_coordinates_df,
-                    title=f'User Clusters with {metric_name} Distance (L={L}) on SVD Data - Visualized with t-SNE',
-                    filename=f"clusters_svd_{metric_name.lower()}_L{L}.png")
+                      title=f'User Clusters with {metric_name.capitalize()} Distance (clusters={n}) - K-Medoids, '
+                            f'Visualized with PCA',
+                      filename=f"clusters_{metric_name.lower()}_n{n}_kmedoids_pca.png")
+
 
 if __name__ == "__main__":
     check_and_setup_directories()
@@ -235,17 +206,11 @@ if __name__ == "__main__":
                                                final_unique_users_indices,
                                                final_unique_items_indices)
 
-    # Apply Truncated SVD to extract low-dimensional user embeddings from the user-item matrix
-    svd_user_representation_matrix = apply_svd_to_user_item_matrix(user_item_matrix, N_SVD_COMPONENTS)
+    # Perform clustering
+    perform_clustering_and_visualize(user_item_matrix=user_item_matrix,
+                                     unique_users_indices=final_unique_users_indices,
+                                     metric_name='euclidean')
 
-    perform_clustering_and_visualize(svd_user_representation_matrix,
-                                     svd_user_representation_matrix.index.values,
-                                     "euclidean",
-                                     "Euclidean",
-                                     L_VALUES)
-
-    perform_clustering_and_visualize(svd_user_representation_matrix,
-                                     svd_user_representation_matrix.index.values,
-                                     "cosine",
-                                     "Cosine",
-                                     L_VALUES)
+    perform_clustering_and_visualize(user_item_matrix=user_item_matrix,
+                                     unique_users_indices=final_unique_users_indices,
+                                     metric_name='cosine')
