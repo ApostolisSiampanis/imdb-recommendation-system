@@ -3,7 +3,7 @@ import numpy as np
 from src.utils import non_zero_ratings
 
 
-def custom_cosine_distance(Ru, Rv):
+def cosine_distance(Ru, Rv):
     Ru_arr = np.array(Ru)
     Rv_arr = np.array(Rv)
 
