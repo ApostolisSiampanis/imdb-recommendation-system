@@ -6,10 +6,8 @@ from sklearn.decomposition import PCA
 from sklearn_extra.cluster import KMedoids
 
 from src.constants import *
-from src.distance.cosine_distance import cosine_distance
 from src.distance.distance_matrix import calculate_distance_matrix
-from src.distance.euclidian_distance import euclidean_distance
-from src.utils import plot_histogram, plot_clusters
+from src.utils import plot_clusters
 
 
 def check_and_setup_directories():
@@ -18,14 +16,14 @@ def check_and_setup_directories():
     os.makedirs(HISTOGRAMS_DIR_PATH, exist_ok=True)
     os.makedirs(CLUSTERS_DIR_PATH, exist_ok=True)
 
-    # Check if a dataset file with the name "Dataset.npy" exists
+    # Check if a dataset file with the name 'Dataset.npy' exists
     dataset_path = os.path.join(DATAFILES_DIR_PATH, DATASET_FILE_NAME)
     if not os.path.isfile(dataset_path):
-        raise FileNotFoundError(f"Dataset file {dataset_path} does not exist or is not a file.")
+        raise FileNotFoundError(f'Dataset file {dataset_path} does not exist or is not a file.')
 
 
 def get_dataframe():
-    pickle_file = os.path.join(DATAFILES_DIR_PATH, "dataframe.pkl")
+    pickle_file = os.path.join(DATAFILES_DIR_PATH, 'dataframe.pkl')
 
     # Load dataset
     if os.path.exists(pickle_file):
@@ -33,62 +31,62 @@ def get_dataframe():
     else:
         dataset_path = os.path.join(DATAFILES_DIR_PATH, DATASET_FILE_NAME)
         raw_data = np.load(dataset_path)
-        data = np.array([x.split(",") for x in raw_data])
-        df = pd.DataFrame(data=data, columns=["user", "item", "rating", "date"])
-        df["user"] = df["user"].str.replace("ur", "").astype(int)
-        df["item"] = df["item"].str.replace("tt", "").astype(int)
-        df["rating"] = df["rating"].astype(int)
-        df["date"] = pd.to_datetime(df["date"])
+        data = np.array([x.split(',') for x in raw_data])
+        df = pd.DataFrame(data=data, columns=['user', 'item', 'rating', 'date'])
+        df['user'] = df['user'].str.replace('ur', '').astype(int)
+        df['item'] = df['item'].str.replace('tt', '').astype(int)
+        df['rating'] = df['rating'].astype(int)
+        df['date'] = pd.to_datetime(df['date'])
         df.to_pickle(pickle_file)
 
     return df
 
 
 def get_unique_users(df):
-    unique_users = df["user"].unique()
+    unique_users = df['user'].unique()
     return unique_users, len(unique_users)
 
 
 def get_unique_items(df):
-    unique_items = df["item"].unique()
+    unique_items = df['item'].unique()
     return unique_items, len(unique_items)
 
 
 def get_num_of_ratings_per_user(df):
-    pickle_file = os.path.join(DATAFILES_DIR_PATH, "ratings_per_user.pkl")
+    pickle_file = os.path.join(DATAFILES_DIR_PATH, 'ratings_per_user.pkl')
     if os.path.isfile(pickle_file):
         num_of_ratings_per_user_df = pd.read_pickle(pickle_file)
     else:
-        num_of_ratings_per_user_df = (df.groupby("user")["rating"]
+        num_of_ratings_per_user_df = (df.groupby('user')['rating']
                                       .count()
-                                      .reset_index(name="ratings_count")
-                                      .sort_values(by="ratings_count", ascending=False))
+                                      .reset_index(name='ratings_count')
+                                      .sort_values(by='ratings_count', ascending=False))
         num_of_ratings_per_user_df.to_pickle(pickle_file)
 
     return num_of_ratings_per_user_df
 
 
 def get_time_span_per_user(df):
-    pickle_file = os.path.join(DATAFILES_DIR_PATH, "time_span_per_user.pkl")
+    pickle_file = os.path.join(DATAFILES_DIR_PATH, 'time_span_per_user.pkl')
     if os.path.exists(pickle_file):
         ratings_span_per_user_df = pd.read_pickle(pickle_file)
     else:
-        ratings_span_per_user_df = (df.groupby("user")["date"]
+        ratings_span_per_user_df = (df.groupby('user')['date']
                                     .apply(lambda date: max(date) - min(date))
                                     .sort_values(ascending=False)
-                                    .reset_index(name="time_span"))
+                                    .reset_index(name='time_span'))
         ratings_span_per_user_df.to_pickle(pickle_file)
     return ratings_span_per_user_df
 
 
 def join_dataframes_on_user(num_of_ratings_per_user_df, time_span_per_user_df):
     joined_df = num_of_ratings_per_user_df.join(other=time_span_per_user_df.set_index('user'), on='user')
-    joined_df["time_span"] = joined_df["time_span"].dt.days
+    joined_df['time_span'] = joined_df['time_span'].dt.days
     return joined_df
 
 
 def create_user_item_matrix(df, unique_users_list, unique_items_list):
-    pickle_file = os.path.join(DATAFILES_DIR_PATH, "user_item_matrix.pkl")
+    pickle_file = os.path.join(DATAFILES_DIR_PATH, 'user_item_matrix.pkl')
 
     if os.path.exists(pickle_file):
         user_item_matrix = pd.read_pickle(pickle_file)
@@ -96,9 +94,9 @@ def create_user_item_matrix(df, unique_users_list, unique_items_list):
         user_item_matrix = pd.DataFrame(data=0, index=unique_users_list, columns=unique_items_list)
 
         for _, row in df.iterrows():
-            user = row["user"]
-            item = row["item"]
-            rating = row["rating"]
+            user = row['user']
+            item = row['item']
+            rating = row['rating']
             user_item_matrix.at[user, item] = rating
 
         user_item_matrix.to_pickle(pickle_file)
@@ -108,26 +106,29 @@ def create_user_item_matrix(df, unique_users_list, unique_items_list):
 
 def perform_clustering_and_visualize(user_item_matrix, unique_users_indices):
     # Apply PCA for visualization to 2D
-    print(f"Applying PCA for visualization (from {user_item_matrix.shape[1]} dimensions to 2D)...")
+    print(f'Applying PCA for visualization (from {user_item_matrix.shape[1]} dimensions to 2D)...')
     reducer = PCA(n_components=2, random_state=42)
 
     # PCA is applied on original data, not the distance matrix
     user_coordinates = reducer.fit_transform(user_item_matrix)
-    print("PCA dimensionality reduction complete.")
+    print('PCA dimensionality reduction complete.')
     user_coordinates_df = pd.DataFrame(user_coordinates, index=unique_users_indices,
                                        columns=['component_1', 'component_2'])
 
     # Calculate the custom distance matrices
     for metric in ['euclidean', 'cosine']:
-        print(f"Calculating {metric.capitalize()} distance matrix...")
-        metric_func = euclidean_distance if metric == 'euclidean' else cosine_distance
-        distance_matrix = calculate_distance_matrix(user_item_matrix, metric_func)
-        np.save(os.path.join(DATAFILES_DIR_PATH, f"distance_matrix_{metric}.npy"), distance_matrix)
-        print("Distance matrix calculation complete.")
+        file = os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric}.npy')
+
+        if os.path.isfile(file):
+            distance_matrix = np.load(os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric}.npy'))
+        else:
+
+            distance_matrix = calculate_distance_matrix(user_item_matrix.to_numpy(), metric)
+            np.save(os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric}.npy'), distance_matrix)
 
         for n in N_OF_CLUSTERS:
-            print(f"K-Medoids Clustering with n={n}...")
-            kmedoids_model = KMedoids(n_clusters=n, metric='precomputed', method='alternate', init='k-medoids++',
+            print(f'K-Medoids Clustering with n={n}...')
+            kmedoids_model = KMedoids(n_clusters=n, metric='precomputed', method='pam', init='k-medoids++',
                                       random_state=42)
             clusters = kmedoids_model.fit_predict(distance_matrix)  # Pass the precomputed distance matrix
             user_coordinates_df['cluster'] = clusters
@@ -135,10 +136,10 @@ def perform_clustering_and_visualize(user_item_matrix, unique_users_indices):
             plot_clusters(user_coordinates_df,
                           title=f'User Clusters with {metric.capitalize()} Distance (clusters={n}) - K-Medoids, '
                                 f'Visualized with PCA',
-                          filename=f"clusters_{metric.lower()}_n{n}_kmedoids_pca.png")
+                          filename=f'clusters_{metric.lower()}_n{n}_kmedoids_pca.png')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     check_and_setup_directories()
 
     # Load the dataset
@@ -157,24 +158,24 @@ if __name__ == "__main__":
     joined_df = join_dataframes_on_user(num_of_ratings_per_user_df, time_span_per_user_df)
 
     # Discard users with too few or too many ratings
-    reduced_joined_df = joined_df[(joined_df["ratings_count"] >= MINIMUM_RATINGS) &
-                                  (joined_df["ratings_count"] <= MAXIMUM_RATINGS)]
+    reduced_joined_df = joined_df[(joined_df['ratings_count'] >= MINIMUM_RATINGS) &
+                                  (joined_df['ratings_count'] <= MAXIMUM_RATINGS)]
 
     # Plot histograms
-    plot_histogram(series=reduced_joined_df["ratings_count"],
-                   title="Number of Users per Rating Count",
-                   xlabel="Rating Count",
-                   ylabel="Number of Users",
-                   filename="rating_count_hist.png")
-
-    plot_histogram(series=reduced_joined_df["time_span"],
-                   title="Number of Users per Rating Time Span",
-                   xlabel="Rating Time Span (days)",
-                   ylabel="Number of Users",
-                   filename="time_span_hist.png")
+    # plot_histogram(series=reduced_joined_df['ratings_count'],
+    #                title='Number of Users per Rating Count',
+    #                xlabel='Rating Count',
+    #                ylabel='Number of Users',
+    #                filename='rating_count_hist.png')
+    #
+    # plot_histogram(series=reduced_joined_df['time_span'],
+    #                title='Number of Users per Rating Time Span',
+    #                xlabel='Rating Time Span (days)',
+    #                ylabel='Number of Users',
+    #                filename='time_span_hist.png')
 
     # Filter df to keep the users from reduced_joined_df
-    final_df = df.loc[df["user"].isin(reduced_joined_df["user"])].reset_index(drop=True)
+    final_df = df.loc[df['user'].isin(reduced_joined_df['user'])].reset_index(drop=True)
 
     # Get unique user and item counts from the final_df
     final_unique_users, final_unique_users_count = get_unique_users(final_df)
@@ -192,8 +193,8 @@ if __name__ == "__main__":
     final_items_dict = dict(zip(sorted_final_items, final_unique_items_indices))
 
     # Replace original user/item IDs in final_df with their corresponding integer indices
-    final_df["user"] = final_df["user"].map(final_users_dict)
-    final_df["item"] = final_df["item"].map(final_items_dict)
+    final_df['user'] = final_df['user'].map(final_users_dict)
+    final_df['item'] = final_df['item'].map(final_items_dict)
 
     # Create user-item matrix (dataframe)
     user_item_matrix = create_user_item_matrix(final_df,

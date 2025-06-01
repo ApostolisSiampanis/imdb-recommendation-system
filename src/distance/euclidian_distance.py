@@ -1,11 +1,13 @@
 import numpy as np
 
-from src.utils import non_zero_ratings
 
+def euclidean_distance(Ru, Rv, common_mask):
+    # If there are no common items, return maximum distance (np.inf)
+    if not np.any(common_mask):
+        return int(2**32-1)
 
-def euclidean_distance(Ru, Rv):
-    total = 0.0
-    for ru, rv in zip(Ru, Rv):
-        if non_zero_ratings(ru, rv):  # Increase total only if both are non-zero
-            total += (ru - rv) ** 2
-    return np.sqrt(total)
+    # Extract the common items
+    Ru_common: np.ndarray = Ru[common_mask]
+    Rv_common = Rv[common_mask]
+
+    return np.linalg.norm(Ru_common - Rv_common)

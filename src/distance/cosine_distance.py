@@ -1,25 +1,14 @@
 import numpy as np
+from sklearn.metrics.pairwise import cosine_distances
 
-from src.utils import non_zero_ratings
 
+def cosine_distance(Ru, Rv, common_mask):
+    # If there are no common items, return maximum distance (1.0)
+    if not np.any(common_mask):
+        return 1.0
 
-def cosine_distance(Ru, Rv):
-    Ru_arr = np.array(Ru)
-    Rv_arr = np.array(Rv)
+    # Extract the common items
+    Ru_common = Ru[common_mask].reshape(1, -1)
+    Rv_common = Rv[common_mask].reshape(1, -1)
 
-    numerator = 0.0
-    sum_u_sq = 0.0
-    sum_v_sq = 0.0
-
-    for ru, rv in zip(Ru_arr, Rv_arr):
-        if non_zero_ratings(ru, rv):  # Both ratings must be non-zero
-            numerator += ru * rv
-            sum_u_sq += ru ** 2
-            sum_v_sq += rv ** 2
-
-    denominator = np.sqrt(sum_u_sq) * np.sqrt(sum_v_sq)
-
-    if denominator == 0:
-        return 1.0  # Maximum cosine distance if no common ratings or zero vector
-
-    return 1 - (numerator / denominator)
+    return cosine_distances(Ru_common, Rv_common)
