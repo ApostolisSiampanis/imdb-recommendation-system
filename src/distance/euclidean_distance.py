@@ -1,7 +1,9 @@
 import numpy as np
 
 
-def euclidean_distance(Ru, Rv, common_mask):
+def euclidean_distance(Ru, Rv):
+    common_mask = (Ru != 0) & (Rv != 0)
+
     # If there are no common items, return the maximum possible distance
     if not np.any(common_mask):
         return np.finfo(float).max

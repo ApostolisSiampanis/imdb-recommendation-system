@@ -2,7 +2,9 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_distances
 
 
-def cosine_distance(Ru, Rv, common_mask):
+def cosine_distance(Ru, Rv):
+    common_mask = (Ru != 0) & (Rv != 0)
+
     # If there are no common items, return maximum distance (1.0)
     if not np.any(common_mask):
         return 1.0
