@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 from src.distance.cosine_distance import cosine_distance
-from src.distance.euclidian_distance import euclidean_distance
+from src.distance.euclidean_distance import euclidean_distance
 
 
 def calculate_distance_matrix(user_item_matrix, metric):

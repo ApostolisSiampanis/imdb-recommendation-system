@@ -2,9 +2,9 @@ import numpy as np
 
 
 def euclidean_distance(Ru, Rv, common_mask):
-    # If there are no common items, return maximum distance (np.inf)
+    # If there are no common items, return the maximum possible distance
     if not np.any(common_mask):
-        return int(2**32-1)
+        return np.finfo(float).max
 
     # Extract the common items
     Ru_common: np.ndarray = Ru[common_mask]
