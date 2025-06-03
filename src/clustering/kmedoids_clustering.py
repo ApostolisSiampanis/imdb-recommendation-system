@@ -7,7 +7,9 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn_extra.cluster import KMedoids
 
 from src.constants import *
+from src.distance.cosine_distance import cosine_distance
 from src.distance.distance_matrix import calculate_distance_matrix
+from src.distance.euclidean_distance import euclidean_distance
 from src.utils import plot_clusters
 
 
@@ -25,11 +27,12 @@ def kmedoids_clustering(user_item_matrix, unique_users_indices):
     # Calculate the custom distance matrices
     for metric in ['euclidean', 'cosine']:
         file = os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric}.npy')
+        metric_func = euclidean_distance if metric == 'euclidean' else cosine_distance
 
         if os.path.isfile(file):
             distance_matrix = np.load(os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric}.npy'))
         else:
-            distance_matrix = calculate_distance_matrix(user_item_matrix.to_numpy(), metric)
+            distance_matrix = calculate_distance_matrix(user_item_matrix.to_numpy(), metric_func, metric)
 
             if metric == 'euclidean':
                 # Normalize the entire distance matrix to the range [0, 1] for consistency and comparability
