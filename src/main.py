@@ -2,12 +2,10 @@ import os
 
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
-from sklearn_extra.cluster import KMedoids
 
+from src.clustering.kmedoids_clustering import kmedoids_clustering
 from src.constants import *
-from src.distance.distance_matrix import calculate_distance_matrix
-from src.utils import plot_clusters
+from src.utils import plot_histogram
 
 
 def check_and_setup_directories():
@@ -104,41 +102,6 @@ def create_user_item_matrix(df, unique_users_list, unique_items_list):
     return user_item_matrix
 
 
-def perform_clustering_and_visualize(user_item_matrix, unique_users_indices):
-    # Apply PCA for visualization to 2D
-    print(f'Applying PCA for visualization (from {user_item_matrix.shape[1]} dimensions to 2D)...')
-    reducer = PCA(n_components=2, random_state=42)
-
-    # PCA is applied on original data, not the distance matrix
-    user_coordinates = reducer.fit_transform(user_item_matrix)
-    print('PCA dimensionality reduction complete.')
-    user_coordinates_df = pd.DataFrame(user_coordinates, index=unique_users_indices,
-                                       columns=['component_1', 'component_2'])
-
-    # Calculate the custom distance matrices
-    for metric in ['euclidean', 'cosine']:
-        file = os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric}.npy')
-
-        if os.path.isfile(file):
-            distance_matrix = np.load(os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric}.npy'))
-        else:
-
-            distance_matrix = calculate_distance_matrix(user_item_matrix.to_numpy(), metric)
-            np.save(os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric}.npy'), distance_matrix)
-
-        for n in N_OF_CLUSTERS:
-            print(f'K-Medoids Clustering with n={n}...')
-            kmedoids_model = KMedoids(n_clusters=n, metric='precomputed', method='pam', init='k-medoids++',
-                                      random_state=42)
-            clusters = kmedoids_model.fit_predict(distance_matrix)  # Pass the precomputed distance matrix
-            user_coordinates_df['cluster'] = clusters
-
-            plot_clusters(user_coordinates_df,
-                          title=f'User Clusters with {metric.capitalize()} Distance (clusters={n}) - K-Medoids, '
-                                f'Visualized with PCA',
-                          filename=f'clusters_{metric.lower()}_n{n}_kmedoids_pca.png')
-
-
 if __name__ == '__main__':
     check_and_setup_directories()
 
@@ -162,17 +125,17 @@ if __name__ == '__main__':
                                   (joined_df['ratings_count'] <= MAXIMUM_RATINGS)]
 
     # Plot histograms
-    # plot_histogram(series=reduced_joined_df['ratings_count'],
-    #                title='Number of Users per Rating Count',
-    #                xlabel='Rating Count',
-    #                ylabel='Number of Users',
-    #                filename='rating_count_hist.png')
-    #
-    # plot_histogram(series=reduced_joined_df['time_span'],
-    #                title='Number of Users per Rating Time Span',
-    #                xlabel='Rating Time Span (days)',
-    #                ylabel='Number of Users',
-    #                filename='time_span_hist.png')
+    plot_histogram(series=reduced_joined_df['ratings_count'],
+                   title='Number of Users per Rating Count',
+                   xlabel='Rating Count',
+                   ylabel='Number of Users',
+                   filename='rating_count_hist.png')
+
+    plot_histogram(series=reduced_joined_df['time_span'],
+                   title='Number of Users per Rating Time Span',
+                   xlabel='Rating Time Span (days)',
+                   ylabel='Number of Users',
+                   filename='time_span_hist.png')
 
     # Filter df to keep the users from reduced_joined_df
     final_df = df.loc[df['user'].isin(reduced_joined_df['user'])].reset_index(drop=True)
@@ -201,5 +164,5 @@ if __name__ == '__main__':
                                                final_unique_users_indices,
                                                final_unique_items_indices)
 
-    # Perform clustering
-    perform_clustering_and_visualize(user_item_matrix=user_item_matrix, unique_users_indices=final_unique_users_indices)
+    # Perform KMedoids clustering
+    kmedoids_clustering(user_item_matrix=user_item_matrix, unique_users_indices=final_unique_users_indices)
