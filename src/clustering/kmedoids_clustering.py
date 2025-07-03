@@ -5,7 +5,7 @@ from sklearn_extra.cluster import KMedoids
 
 from src.constants import *
 from src.distance.distance_matrix import calculate_distance_matrix, Metric
-from src.utils import plot_clusters
+from src.plot import plot_clusters
 
 
 def kmedoids_clustering(user_item_matrix, unique_users_indices):

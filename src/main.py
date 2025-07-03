@@ -5,7 +5,7 @@ import pandas as pd
 
 from src.clustering.kmedoids_clustering import kmedoids_clustering
 from src.constants import *
-from src.utils import plot_histogram
+from src.plot import plot_histogram
 
 
 def check_and_setup_directories():
