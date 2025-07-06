@@ -12,9 +12,9 @@ from src.distance.jaccard_distance import jaccard_distance
 
 def calculate_distance_matrix(user_item_matrix, metric):
     # If distance matrix is already saved locally, load and return it
-    file = os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric.value.lower()}.npy')
+    file = os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric.value}.npy')
     if os.path.isfile(file):
-        return np.load(os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric.value.lower()}.npy'))
+        return np.load(os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric.value}.npy'))
 
     # else calculate the distance matrix
     num_of_users = user_item_matrix.shape[0]
@@ -42,12 +42,12 @@ def calculate_distance_matrix(user_item_matrix, metric):
                 pbar.update(1)
 
     # Save the distance matrix
-    np.save(os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric.value.lower()}.npy'), distance_matrix)
+    np.save(os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric.value}.npy'), distance_matrix)
 
     return distance_matrix
 
 
 class Metric(Enum):
-    EUCLIDEAN = 'Euclidean'
-    COSINE = 'Cosine'
-    JACCARD = 'Jaccard'
+    EUCLIDEAN = 'euclidean'
+    COSINE = 'cosine'
+    JACCARD = 'jaccard'
