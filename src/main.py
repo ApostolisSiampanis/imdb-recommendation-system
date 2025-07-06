@@ -3,11 +3,11 @@ import os
 import numpy as np
 import pandas as pd
 
+from src.ann_recommendation_system import ann_recommendation_system
 from src.constants import *
 from src.distance.distance_matrix import Metric
 from src.kmedoids_clustering import kmedoids_clustering
 from src.plot import plot_histogram
-from src.rnn_recommendation_system import ann_recommendation_system
 
 
 def check_and_setup_directories():
@@ -179,3 +179,6 @@ if __name__ == '__main__':
                             unique_users_indices=final_unique_users_indices,
                             metric=Metric.COSINE,
                             n_clusters=n_clusters)
+
+    # Recommendation System based on Artificial Neural Networks (clustering with jaccard distance\dissimilarity)
+    ann_recommendation_system(user_item_matrix=user_item_matrix, unique_users_indices=final_unique_users_indices)
