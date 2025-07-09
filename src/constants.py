@@ -6,3 +6,4 @@ DATASET_FILE_NAME = 'Dataset.npy'
 MINIMUM_RATINGS = 100
 MAXIMUM_RATINGS = 300
 N_OF_CLUSTERS = [3, 5, 7]  # number of clusters
+N_OF_NEIGHBORS = 5  # Number of nearest neighbors to retrieve (excluding the user themself)
