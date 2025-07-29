@@ -1,11 +1,12 @@
 from typing import List, Tuple
 
 import numpy as np
+import tensorflow as tf
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, InputLayer
+from tensorflow.keras.models import Sequential
+
 from src.constants import N_OF_NEIGHBORS, N_OF_CLUSTERS
 from src.distance.distance_matrix import Metric
 from src.kmedoids_clustering import kmedoids_clustering
@@ -137,11 +138,11 @@ def masked_mae(y_true, y_pred):
     Returns:
         tf.Tensor: Masked MAE loss value.
     """
-    mask = tf.not_equal(y_true, 0)     # Mask where rating exists
-    mask = tf.cast(mask, tf.float32)      # Convert to float
+    mask = tf.not_equal(y_true, 0)  # Mask where rating exists
+    mask = tf.cast(mask, tf.float32)  # Convert to float
 
-    error = tf.abs(y_true - y_pred)       # Absolute error
-    masked_error = error * mask           # Keep only where mask = 1
+    error = tf.abs(y_true - y_pred)  # Absolute error
+    masked_error = error * mask  # Keep only where mask = 1
 
     # Prevent division by zero
     loss = tf.reduce_sum(masked_error) / tf.reduce_sum(mask)
@@ -162,7 +163,7 @@ def build_ann_model(X_train_flat, y_train):
     model = Sequential([
         InputLayer(shape=(X_train_flat.shape[1],)),
         Dense(512, activation='relu'),
-        Dropout(0.2),                               # prevents overfitting
+        Dropout(0.2),  # prevents overfitting
         Dense(256, activation='relu'),
         Dense(128, activation='relu'),
         Dense(y_train.shape[1], activation='linear')
