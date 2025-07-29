@@ -178,3 +178,6 @@ datafiles
 
 # histogram plots
 histograms
+
+# clusters plots
+clusters
