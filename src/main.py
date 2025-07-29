@@ -166,8 +166,8 @@ if __name__ == '__main__':
                                                final_unique_users_indices,
                                                final_unique_items_indices)
 
-    # Perform KMedoids clustering (clustering with euclidean and cosine distances)
-    for n_clusters in N_OF_CLUSTERS:
+    # Perform KMedoids clustering (clustering with euclidean and cosine distances) for different number of clusters
+    for n_clusters in N_OF_CLUSTERS_LIST:
         # euclidean distance
         kmedoids_clustering(user_item_matrix=user_item_matrix,
                             unique_users_indices=final_unique_users_indices,
