@@ -1,4 +1,3 @@
-# Constants
 DATAFILES_DIR_PATH = 'datafiles'
 HISTOGRAMS_DIR_PATH = 'histograms'
 CLUSTERS_DIR_PATH = 'clusters'

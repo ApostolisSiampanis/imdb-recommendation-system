@@ -11,6 +11,12 @@ from src.plot import plot_histogram
 
 
 def check_and_setup_directories():
+    """
+    Ensures required directories exist and the dataset file is available.
+
+    Raises:
+        FileNotFoundError: If the dataset file does not exist in the expected location.
+    """
     # Directory setup
     os.makedirs(DATAFILES_DIR_PATH, exist_ok=True)
     os.makedirs(HISTOGRAMS_DIR_PATH, exist_ok=True)
@@ -23,6 +29,12 @@ def check_and_setup_directories():
 
 
 def get_dataframe():
+    """
+    Loads the dataset from a cached pickle file if available, otherwise processes the raw .npy dataset.
+
+    Returns:
+        pd.DataFrame: DataFrame with columns ['user', 'item', 'rating', 'date'].
+    """
     pickle_file = os.path.join(DATAFILES_DIR_PATH, 'dataframe.pkl')
 
     # Load dataset
@@ -43,16 +55,43 @@ def get_dataframe():
 
 
 def get_unique_users(df):
+    """
+    Extracts unique users from the DataFrame.
+
+    Args:
+        df (pd.DataFrame): The dataset containing a 'user' column.
+
+    Returns:
+        Tuple[np.ndarray, int]: Array of unique users and the count.
+    """
     unique_users = df['user'].unique()
     return unique_users, len(unique_users)
 
 
 def get_unique_items(df):
+    """
+    Extracts unique items from the DataFrame.
+
+    Args:
+        df (pd.DataFrame): The dataset containing an 'item' column.
+
+    Returns:
+        Tuple[np.ndarray, int]: Array of unique items and the count.
+    """
     unique_items = df['item'].unique()
     return unique_items, len(unique_items)
 
 
 def get_num_of_ratings_per_user(df):
+    """
+    Calculates the number of ratings made by each user.
+
+    Args:
+        df (pd.DataFrame): The dataset with user ratings.
+
+    Returns:
+        pd.DataFrame: DataFrame with columns ['user', 'ratings_count'], sorted by ratings_count descending.
+    """
     pickle_file = os.path.join(DATAFILES_DIR_PATH, 'ratings_per_user.pkl')
     if os.path.isfile(pickle_file):
         num_of_ratings_per_user_df = pd.read_pickle(pickle_file)
@@ -67,6 +106,15 @@ def get_num_of_ratings_per_user(df):
 
 
 def get_time_span_per_user(df):
+    """
+    Calculates the time span between a user's first and last rating.
+
+    Args:
+        df (pd.DataFrame): The dataset with user ratings and dates.
+
+    Returns:
+        pd.DataFrame: DataFrame with columns ['user', 'time_span'], sorted by time_span descending.
+    """
     pickle_file = os.path.join(DATAFILES_DIR_PATH, 'time_span_per_user.pkl')
     if os.path.exists(pickle_file):
         ratings_span_per_user_df = pd.read_pickle(pickle_file)
@@ -80,12 +128,33 @@ def get_time_span_per_user(df):
 
 
 def join_dataframes_on_user(num_of_ratings_per_user_df, time_span_per_user_df):
+    """
+    Joins rating count and time span data on the 'user' column.
+
+    Args:
+        num_of_ratings_per_user_df (pd.DataFrame): DataFrame with user rating counts.
+        time_span_per_user_df (pd.DataFrame): DataFrame with user rating time spans.
+
+    Returns:
+        pd.DataFrame: Joined DataFrame with columns ['user', 'ratings_count', 'time_span'].
+    """
     joined_df = num_of_ratings_per_user_df.join(other=time_span_per_user_df.set_index('user'), on='user')
     joined_df['time_span'] = joined_df['time_span'].dt.days
     return joined_df
 
 
 def create_user_item_matrix(df, unique_users_list, unique_items_list):
+    """
+    Builds a user-item interaction matrix from the given DataFrame.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing 'user', 'item', and 'rating' columns.
+        unique_users_list (List[int]): List of user indices.
+        unique_items_list (List[int]): List of item indices.
+
+    Returns:
+        pd.DataFrame: User-item matrix with users as rows and items as columns.
+    """
     pickle_file = os.path.join(DATAFILES_DIR_PATH, 'user_item_matrix.pkl')
 
     if os.path.exists(pickle_file):

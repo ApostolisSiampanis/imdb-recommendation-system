@@ -11,6 +11,17 @@ from src.distance.jaccard_distance import jaccard_distance
 
 
 def calculate_distance_matrix(user_item_matrix, metric):
+    """
+    Computes (or loads, if cached) a pairwise user distance matrix based on the specified metric.
+
+    Args:
+        user_item_matrix (np.ndarray): Matrix of user-item ratings, shape (n_users, n_items).
+        metric (Metric): Distance metric to use. Must be one of Metric.EUCLIDEAN, Metric.COSINE, or Metric.JACCARD.
+
+    Returns:
+        np.ndarray: A symmetric distance matrix of shape (n_users, n_users), where each entry [i, j]
+                    represents the distance between user i and user j based on the selected metric.
+    """
     # If distance matrix is already saved locally, load and return it
     file = os.path.join(DATAFILES_DIR_PATH, f'distance_matrix_{metric.value}.npy')
     if os.path.isfile(file):

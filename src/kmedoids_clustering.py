@@ -8,6 +8,21 @@ from src.plot import plot_clusters
 
 
 def kmedoids_clustering(user_item_matrix, unique_users_indices, metric, n_clusters):
+    """
+    Performs K-Medoids clustering on user-item interaction data using a specified distance metric.
+    Also applies PCA for 2D visualization and saves a plot of the resulting clusters.
+
+    Args:
+        user_item_matrix (pd.DataFrame): Matrix of user-item ratings, shape (n_users, n_items).
+        unique_users_indices (List[int]): Indices of the users corresponding to the rows of the matrix.
+        metric (Metric): Distance metric to use (EUCLIDEAN, COSINE, or JACCARD).
+        n_clusters (int): Number of clusters for the K-Medoids algorithm.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]:
+            - clusters_labels: Cluster labels assigned to each user.
+            - distance_matrix: Pairwise distance matrix used for clustering.
+    """
     print(f'\nK-Medoids Clustering with {n_clusters} clusters... ({metric.value} distance)')
 
     # Apply PCA for visualization to 2D
