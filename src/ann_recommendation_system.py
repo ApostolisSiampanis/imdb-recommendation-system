@@ -1,30 +1,70 @@
 from typing import List, Tuple
 
 import numpy as np
-
-from src.constants import N_OF_NEIGHBORS
+from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import train_test_split
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, InputLayer
+from src.constants import N_OF_NEIGHBORS, N_OF_CLUSTERS
 from src.distance.distance_matrix import Metric
 from src.kmedoids_clustering import kmedoids_clustering
 
 
 def ann_recommendation_system(user_item_matrix, unique_users_indices):
-    # TODO add print informational message
-    # TODO do we need unique_users_indices
-    n_clusters = 4
+    """
+    Runs an artificial neural network (ANN)-based recommendation system using K-Medoids clustering
+    and nearest neighbor information from user-item interactions.
+
+    Args:
+        user_item_matrix (pd.DataFrame): Matrix of user-item ratings.
+        unique_users_indices (List[int]): Indices of unique users in the user_item_matrix.
+    """
+    print(f'\nK-Medoids Clustering with {N_OF_CLUSTERS} clusters... ({Metric.JACCARD.value} distance)')
+
     clusters_labels, distance_matrix = kmedoids_clustering(user_item_matrix=user_item_matrix,
                                                            unique_users_indices=unique_users_indices,
                                                            metric=Metric.JACCARD,
-                                                           n_clusters=n_clusters)
+                                                           n_clusters=N_OF_CLUSTERS)
 
-    clusters_of_users = get_clusters_of_users(n_clusters=n_clusters,
+    clusters_of_users = get_clusters_of_users(n_clusters=N_OF_CLUSTERS,
                                               clusters_labels=clusters_labels,
                                               user_item_matrix=user_item_matrix,
                                               distance_matrix=distance_matrix)
 
     # Iterate through clusters and construct training data for each
     for cluster_of_users in clusters_of_users:
-        X_train, Y_train = build_training_data_from_cluster(cluster_of_users)
-        pass
+        X, y = build_training_data_from_cluster(cluster_of_users)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+        X_train_flat, X_test_flat = X_train.reshape((X_train.shape[0], -1)), X_test.reshape((X_test.shape[0], -1))
+        ann_model = build_ann_model(X_train_flat, y_train)
+
+        # Train the model on training data
+        ann_model.fit(
+            X_train_flat,
+            y_train,
+            epochs=20,
+            batch_size=32,
+            validation_split=0.15,  # Split off 15% for validation
+            verbose=1
+        )
+
+        # Evaluate model on training data
+        y_train_pred = ann_model.predict(X_train_flat)
+        y_train_pred_clipped = np.clip(y_train_pred, 1.0, 10.0)
+
+        mask_train = y_train != 0
+        train_mae = mean_absolute_error(y_train[mask_train], y_train_pred_clipped[mask_train])
+
+        # Evaluate model on test data
+        y_pred = ann_model.predict(X_test_flat)
+        y_pred_clipped = np.clip(y_pred, 1.0, 10.0)
+
+        mask_test = y_test != 0
+        test_mae = mean_absolute_error(y_test[mask_test], y_pred_clipped[mask_test])
+
+        print(f"Training MAE: {train_mae:.4f}")
+        print(f"Test MAE:     {test_mae:.4f}")
 
 
 def get_clusters_of_users(n_clusters, clusters_labels, user_item_matrix, distance_matrix):
@@ -60,27 +100,72 @@ def get_clusters_of_users(n_clusters, clusters_labels, user_item_matrix, distanc
 
 def build_training_data_from_cluster(cluster_of_users):
     """
-    Constructs training data (X, Y) for ANN using the i-th user's cluster data.
+    Constructs training data (X, y) for ANN using the i-th user's cluster data.
 
     Args:
         cluster_of_users (List[Tuple[List[np.ndarray], int]]): List of (neighbors_items, user_index).
 
     Returns:
         Tuple[np.ndarray, np.ndarray]:
-            - X_train: shape (rows, N_OF_NEIGHBORS, number_of_ratings)
-            - Y_train: shape (rows, number_of_ratings)
+            - X: shape (rows, N_OF_NEIGHBORS, number_of_ratings)
+            - y: shape (rows, number_of_ratings)
     """
     rows = len(cluster_of_users)
     number_of_ratings = len(cluster_of_users[0][0][0])  # length of a single user's item vector
 
-    X_train = np.empty(shape=(rows, N_OF_NEIGHBORS, number_of_ratings))
-    Y_train = np.empty(shape=(rows, number_of_ratings))
+    X = np.empty(shape=(rows, N_OF_NEIGHBORS, number_of_ratings))
+    y = np.empty(shape=(rows, number_of_ratings))
 
     for row_index, (neighbors_items, user_index) in enumerate(cluster_of_users):
         for j, item_vector in enumerate(neighbors_items):
             if j == 0:  # The first item is the current user's own vector
-                Y_train[row_index] = item_vector
+                y[row_index] = item_vector
             else:  # Remaining are neighbors' vectors
-                X_train[row_index][j - 1] = item_vector
+                X[row_index][j - 1] = item_vector
 
-    return X_train, Y_train
+    return X, y
+
+
+def masked_mae(y_true, y_pred):
+    """
+    Computes mean absolute error (MAE) only over the non-zero (rated) elements.
+
+    Args:
+        y_true (tf.Tensor): Ground truth rating matrix.
+        y_pred (tf.Tensor): Predicted rating matrix.
+
+    Returns:
+        tf.Tensor: Masked MAE loss value.
+    """
+    mask = tf.not_equal(y_true, 0)     # Mask where rating exists
+    mask = tf.cast(mask, tf.float32)      # Convert to float
+
+    error = tf.abs(y_true - y_pred)       # Absolute error
+    masked_error = error * mask           # Keep only where mask = 1
+
+    # Prevent division by zero
+    loss = tf.reduce_sum(masked_error) / tf.reduce_sum(mask)
+    return loss
+
+
+def build_ann_model(X_train_flat, y_train):
+    """
+    Builds and compiles an artificial neural network model for rating prediction.
+
+    Args:
+        X_train_flat (np.ndarray): Flattened training features of shape (n_samples, n_features).
+        y_train (np.ndarray): Training labels of shape (n_samples, n_outputs).
+
+    Returns:
+        tf.keras.Model: Compiled ANN model.
+    """
+    model = Sequential([
+        InputLayer(shape=(X_train_flat.shape[1],)),
+        Dense(512, activation='relu'),
+        Dropout(0.2),                               # prevents overfitting
+        Dense(256, activation='relu'),
+        Dense(128, activation='relu'),
+        Dense(y_train.shape[1], activation='linear')
+    ])
+    model.compile(optimizer='adam', loss=masked_mae)
+    return model
