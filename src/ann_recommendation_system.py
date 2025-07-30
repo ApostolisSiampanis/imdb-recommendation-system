@@ -21,8 +21,6 @@ def ann_recommendation_system(user_item_matrix, unique_users_indices):
         user_item_matrix (pd.DataFrame): Matrix of user-item ratings.
         unique_users_indices (List[int]): Indices of unique users in the user_item_matrix.
     """
-    print(f'\nK-Medoids Clustering with {N_OF_CLUSTERS} clusters... ({Metric.JACCARD.value} distance)')
-
     clusters_labels, distance_matrix = kmedoids_clustering(user_item_matrix=user_item_matrix,
                                                            unique_users_indices=unique_users_indices,
                                                            metric=Metric.JACCARD,
@@ -34,13 +32,14 @@ def ann_recommendation_system(user_item_matrix, unique_users_indices):
                                               distance_matrix=distance_matrix)
 
     # Iterate through clusters and construct training data for each
-    for cluster_of_users in clusters_of_users:
+    for i, cluster_of_users in enumerate(clusters_of_users):
         X, y = build_training_data_from_cluster(cluster_of_users)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
         X_train_flat, X_test_flat = X_train.reshape((X_train.shape[0], -1)), X_test.reshape((X_test.shape[0], -1))
         ann_model = build_ann_model(X_train_flat, y_train)
 
         # Train the model on training data
+        print(f'\nANN model training started for cluster {i + 1}...')
         ann_model.fit(
             X_train_flat,
             y_train,
@@ -64,8 +63,9 @@ def ann_recommendation_system(user_item_matrix, unique_users_indices):
         mask_test = y_test != 0
         test_mae = mean_absolute_error(y_test[mask_test], y_pred_clipped[mask_test])
 
-        print(f"Training MAE: {train_mae:.4f}")
-        print(f"Test MAE:     {test_mae:.4f}")
+        print('\nResults:')
+        print(f'\tTraining MAE: {train_mae:.4f}')
+        print(f'\tTest MAE:     {test_mae:.4f}')
 
 
 def get_clusters_of_users(n_clusters, clusters_labels, user_item_matrix, distance_matrix):
