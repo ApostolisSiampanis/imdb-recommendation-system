@@ -21,7 +21,7 @@ def euclidean_distance(Ru, Rv):
         return np.finfo(float).max
 
     # Extract the common items
-    Ru_common: np.ndarray = Ru[common_mask]
+    Ru_common = Ru[common_mask]
     Rv_common = Rv[common_mask]
 
     return np.linalg.norm(Ru_common - Rv_common)
