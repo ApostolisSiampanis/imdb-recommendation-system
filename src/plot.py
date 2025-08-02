@@ -54,12 +54,35 @@ def plot_clusters(user_coordinates_df, title, filename):
         The scatter plot in a pop-up window (using matplotlib).
     """
     plt.figure(figsize=(10, 8))
-    sns.scatterplot(x='component_1', y='component_2', hue='cluster', data=user_coordinates_df, palette='viridis',
-                    legend='full', s=50, alpha=0.7)
+
+    # Generate the same palette used by seaborn
+    unique_clusters = sorted(user_coordinates_df['cluster'].unique())
+    palette = sns.color_palette('viridis', n_colors=len(unique_clusters))
+
+    # Map cluster label to color
+    cluster_to_color = {cluster: palette[i] for i, cluster in enumerate(unique_clusters)}
+
+    # Plot points
+    sns.scatterplot(
+        x='component_1', y='component_2',
+        hue='cluster', data=user_coordinates_df,
+        palette=cluster_to_color, legend='full', s=50, alpha=0.7
+    )
+
+    # Compute centroids
+    centroids_df = user_coordinates_df.groupby('cluster')[['component_1', 'component_2']].mean().reset_index()
+
+    # Plot each centroid with its matching cluster color
+    for _, row in centroids_df.iterrows():
+        cluster_id = row['cluster']
+        centroid_color = cluster_to_color[cluster_id]
+        plt.scatter(row['component_1'], row['component_2'], color=centroid_color, marker='X',
+                    label=f'Centroid {int(cluster_id)}', s=150, edgecolor='black', linewidth=1.5)
     plt.title(title)
     plt.xlabel('Principal Component 1')
     plt.ylabel('Principal Component 2')
     plt.grid(True)
+    plt.legend()
     figure_url = os.path.join(CLUSTERS_DIR_PATH, filename)
     plt.savefig(figure_url, dpi=100, format='png', bbox_inches='tight')
     plt.show()

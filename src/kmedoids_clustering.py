@@ -43,7 +43,7 @@ def kmedoids_clustering(user_item_matrix, unique_users_indices, metric, n_cluste
     # PCA is applied on original data, not the distance matrix
     user_coordinates = reducer.fit_transform(user_item_matrix)
     print('PCA dimensionality reduction complete.')
-    user_coordinates_df = pd.DataFrame(user_coordinates, index=unique_users_indices,
+    user_coordinates_df = pd.DataFrame(data=user_coordinates, index=unique_users_indices,
                                        columns=['component_1', 'component_2'])
 
     user_coordinates_df['cluster'] = clusters_labels
