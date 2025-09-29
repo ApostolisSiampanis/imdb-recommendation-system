@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import json
 
 from src.ann_recommendation_system import ann_recommendation_system
 from src.constants import *
@@ -235,19 +236,50 @@ if __name__ == '__main__':
                                                final_unique_users_indices,
                                                final_unique_items_indices)
 
-    # Perform KMedoids clustering (clustering with euclidean and cosine distances) for different number of clusters
+    # ----- New: Export artifacts for deployment & cold-start -----
+    os.makedirs(EXPORT_DIR, exist_ok=True)
+
+    # User / item mappings (ensure JSON-serializable: cast numpy ints to str keys and int values)
+    serializable_user_mapping = {str(int(k)): int(v) for k, v in final_users_dict.items()}
+    serializable_item_mapping = {str(int(k)): int(v) for k, v in final_items_dict.items()}
+    with open(os.path.join(EXPORT_DIR, 'user_mapping.json'), 'w') as f:
+        json.dump(serializable_user_mapping, f)
+    with open(os.path.join(EXPORT_DIR, 'item_mapping.json'), 'w') as f:
+        json.dump(serializable_item_mapping, f)
+
+    reverse_user_mapping = {int(v): int(k) for k, v in serializable_user_mapping.items()}
+    reverse_item_mapping = {int(v): int(k) for k, v in serializable_item_mapping.items()}
+    # Reverse mappings: use string keys for consistency with loaders that cast
+    reverse_user_mapping_serializable = {str(k): v for k, v in reverse_user_mapping.items()}
+    reverse_item_mapping_serializable = {str(k): v for k, v in reverse_item_mapping.items()}
+    with open(os.path.join(EXPORT_DIR, 'reverse_user_mapping.json'), 'w') as f:
+        json.dump(reverse_user_mapping_serializable, f)
+    with open(os.path.join(EXPORT_DIR, 'reverse_item_mapping.json'), 'w') as f:
+        json.dump(reverse_item_mapping_serializable, f)
+
+    # Save user-item matrix
+    np.save(os.path.join(EXPORT_DIR, 'user_item_matrix.npy'), user_item_matrix.to_numpy().astype(np.float32))
+    user_item_matrix.to_pickle(os.path.join(EXPORT_DIR, 'user_item_matrix.pkl'))
+
+    # Popularity stats for cold-start fallback
+    item_nonzero_counts = (user_item_matrix != 0).sum(axis=0)  # pandas Series indexed by item internal id
+    item_avg_ratings = user_item_matrix.replace(0, np.nan).mean(axis=0)
+    popularity_df = pd.DataFrame({
+        'internal_item_id': item_nonzero_counts.index,
+        'count': item_nonzero_counts.values,
+        'avg_rating': item_avg_ratings.values
+    })
+    popularity_df['original_item_id'] = popularity_df['internal_item_id'].map(reverse_item_mapping)
+    popularity_df = popularity_df.sort_values(by=['count', 'avg_rating'], ascending=[False, False]).reset_index(drop=True)
+    top_popular = popularity_df.head(POPULARITY_FALLBACK_SIZE)
+    top_popular.to_json(os.path.join(EXPORT_DIR, 'popular_items.json'), orient='records')
+
+    # ----- Existing clustering visualizations (optional) -----
     for n_clusters in N_OF_CLUSTERS_LIST:
-        # euclidean distance
-        kmedoids_clustering(user_item_matrix=user_item_matrix,
-                            unique_users_indices=final_unique_users_indices,
-                            metric=Metric.EUCLIDEAN,
-                            n_clusters=n_clusters)
+        kmedoids_clustering(user_item_matrix, final_unique_users_indices, Metric.EUCLIDEAN, n_clusters)
+        kmedoids_clustering(user_item_matrix, final_unique_users_indices, Metric.COSINE, n_clusters)
 
-        # cosine distance
-        kmedoids_clustering(user_item_matrix=user_item_matrix,
-                            unique_users_indices=final_unique_users_indices,
-                            metric=Metric.COSINE,
-                            n_clusters=n_clusters)
-
-    # Recommendation System based on Artificial Neural Networks (clustering with jaccard distance\dissimilarity)
-    ann_recommendation_system(user_item_matrix=user_item_matrix, unique_users_indices=final_unique_users_indices)
+    # Train & export ANN cluster models + deployment artifacts
+    ann_recommendation_system(user_item_matrix=user_item_matrix,
+                              unique_users_indices=final_unique_users_indices,
+                              export_dir=EXPORT_DIR)
