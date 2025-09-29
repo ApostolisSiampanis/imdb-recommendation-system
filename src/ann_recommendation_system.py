@@ -147,7 +147,17 @@ def ann_recommendation_system(user_item_matrix, unique_users_indices, export_dir
 
 
 def get_clusters_of_users(n_clusters, clusters_labels, user_item_matrix, distance_matrix):
-    """Group users into clusters and collect each user's top-N neighbors (including self at index 0)."""
+    """
+        Groups users into clusters and gathers each user's top-N nearest neighbors.
+
+        Returns:
+            clusters_of_users: A list of `n_clusters` elements.
+                Each element is a list of tuples (neighbors_items, user_index),
+                where:
+                    - neighbors_items is a list of np.ndarrays (item vectors),
+                      including the current user (at index 0) and their N nearest neighbors.
+                    - user_index is the index of the current user in the user_item_matrix.
+    """
     clusters_of_users: List[List[Tuple[List[np.ndarray], int]]] = [[] for _ in range(n_clusters)]
     user_item_np = user_item_matrix.to_numpy()
     num_users = len(clusters_labels)
@@ -161,7 +171,17 @@ def get_clusters_of_users(n_clusters, clusters_labels, user_item_matrix, distanc
 
 
 def build_training_data_from_cluster(cluster_of_users):
-    """Create X (neighbors) and y (target user) arrays for one cluster."""
+    """
+        Constructs training data (X, y) for ANN using the i-th user's cluster data.
+
+        Args:
+            cluster_of_users (List[Tuple[List[np.ndarray], int]]): List of (neighbors_items, user_index).
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]:
+                - X: shape (rows, N_OF_NEIGHBORS, number_of_ratings)
+                - y: shape (rows, number_of_ratings)
+    """
     rows = len(cluster_of_users)
     number_of_ratings = len(cluster_of_users[0][0][0])
     X = np.empty((rows, N_OF_NEIGHBORS, number_of_ratings), dtype=np.float32)
@@ -185,6 +205,16 @@ def masked_mae(y_true, y_pred):
 
 
 def build_ann_model(X_train_flat, y_train):
+    """
+        Builds and compiles an artificial neural network model for rating prediction.
+
+        Args:
+            X_train_flat (np.ndarray): Flattened training features of shape (n_samples, n_features).
+            y_train (np.ndarray): Training labels of shape (n_samples, n_outputs).
+
+        Returns:
+            tf.keras.Model: Compiled ANN model.
+    """
     input_dim = X_train_flat.shape[1]
     output_dim = y_train.shape[1]
     model = Sequential([
