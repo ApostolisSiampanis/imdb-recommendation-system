@@ -1,5 +1,12 @@
 # IMDb Recommendation System
 
+## [University of Piraeus](https://www.unipi.gr/en/home/) | [Department of Informatics](https://cs.unipi.gr/en/)
+**MSc course**: Pattern Recognition and Machine Learning
+
+**Semester**: 1
+
+**Project Completion Year**: 2025
+
 ## Project Overview
 
 This project builds a movie recommendation system on IMDb user ratings. It first groups users with similar tastes using K-Medoids clustering and then trains an Artificial Neural Network (ANN) per cluster that predicts a user's ratings from the ratings of their nearest neighbors.
@@ -100,6 +107,9 @@ The main parameters can be changed in `src/constants.py`:
     <td align="center"><a href="https://github.com/dimitrisstyl7"><img src="https://avatars.githubusercontent.com/u/75742419?v=4" width="100px;" alt="Dimitris Stylianou"/><br /><sub><b>Dimitris Stylianou</b></sub></a><br /></td>
   </tr>
 </table>
+
+## Acknowledgments
+This project was developed as part of the "Pattern Recognition and Machine Learning" MSc course at the University of Piraeus. Contributions and feedback are always welcome!
 
 ## License
 
