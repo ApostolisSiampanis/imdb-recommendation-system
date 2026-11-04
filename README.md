@@ -92,6 +92,15 @@ The main parameters can be changed in `src/constants.py`:
 | `N_OF_CLUSTERS` | `3` | Number of clusters used by the neural network recommender (Jaccard distance) |
 | `N_OF_NEIGHBORS` | `5` | Number of nearest neighbors used as input for each user |
 
+## Contributors
+
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/ApostolisSiampanis"><img src="https://avatars.githubusercontent.com/u/75365398?v=4" width="100px;" alt="Apostolis Siampanis"/><br /><sub><b>Apostolis Siampanis</b></sub></a><br /></td>
+    <td align="center"><a href="https://github.com/dimitrisstyl7"><img src="https://avatars.githubusercontent.com/u/75742419?v=4" width="100px;" alt="Dimitris Stylianou"/><br /><sub><b>Dimitris Stylianou</b></sub></a><br /></td>
+  </tr>
+</table>
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
